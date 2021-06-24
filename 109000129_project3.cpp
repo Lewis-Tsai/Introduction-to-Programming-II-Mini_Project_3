@@ -41,7 +41,7 @@ struct Othello_board
 	}
 	bool check_valid_spot(Point start_pt)
 	{
-		int enemy_player = cur_player=BLACK? WHITE : BLACK;
+		int enemy_player = now_player=BLACK? WHITE : BLACK;
 		if(board[start_pt.x][start_pt.y]!=EMPTY)
 			return false;
 		for(auto it : direction)
@@ -74,8 +74,8 @@ struct Othello_board
 	}
 	void flip_disc(Point start_pt)
 	{
-		int enemy_player = cur_player=BLACK? WHITE : BLACK;
-		if(board[start_pt.x][start_pt.y]==cur_player)
+		int enemy_player = now_player=BLACK? WHITE : BLACK;
+		if(board[start_pt.x][start_pt.y]==now_player)
 		{
 			for(auto it : direction)
 			{
@@ -93,6 +93,120 @@ struct Othello_board
 		}
 		return;
 	}
+	
+	int get_node_value()
+	{
+		// intialize black and white total
+    	int BLACK_score = 0;
+    	int WHITE_score = 0;
+
+    	// factor in the amount of moves each player has
+    	b_total += getBlackLegalMoves(board).size();
+    	w_total += getWhiteLegalMoves(board).size();
+
+    	// factor in the amount of pieces each player has on the board
+    	b_total += getScore(board, 'b');
+    	w_total += getScore(board, 'w');
+
+    	for(int i=0;i<8;i++)
+    	{
+    		for(int j=0;j<8;j++)
+    		{
+    			if(board[i][j]!=EMPTY)
+    			{
+    				//check four corners
+    				if(i==0)
+    				{
+    					if(j==0 || j==7)
+    					{
+    						if(board[i][j]==BLACK) BLACK_score+=15;
+    	    				else WHITE_score+=15;
+    	    				continue;
+						}
+					}
+					if(i==7)
+					{
+						if(j==0 || j==7)
+    					{
+    						if(board[i][j]==BLACK) BLACK_score+=15;
+    	    				else WHITE_score+=15;
+    	    				continue;
+						}
+					}
+					
+					//check central area
+					if(i==2 || i==3 || i=4 || i=5)
+					{
+						if(j==2 || j==3 || j==4 || j==5)
+						{
+							if(board[i][j]==BLACK) BLACK_score-=2;
+    	    				else WHITE_score-=2;
+						}
+					}
+					
+					//check the boundaries rolls and collums as well as special bonus points
+					if(i==0 || i==7)
+					{
+						if(board[i][j]==BLACK) BLACK_score+=5;
+    	    			else WHITE_score+=5;
+    	    			if(j==2 || j==5)
+    	    			{
+    	    				if(board[i][j]==BLACK) BLACK_score+=2;
+    	    				else WHITE_score+=2;
+						}
+					}
+					if(j==0 || j==7)
+					{
+						if(board[i][j]==BLACK) BLACK_score+=5;
+    	    			else WHITE_score+=5;
+    	    			if(i==2 || i==5)
+    	    			{
+    	    				if(board[i][j]==BLACK) BLACK_score+=2;
+    	    				else WHITE_score+=2;
+						}
+					}
+					
+					//check if next to the corners
+					if(i==0)
+					{
+						if(j==1 || j==6)
+						{
+							if(board[i][j]==BLACK) BLACK_score-=3;
+    	    				else WHITE_score-=3;
+						}
+					}
+					else if(i==1)
+					{
+						if(j==0 || j==1 || j==6 ||j==7)
+						{
+							if(board[i][j]==BLACK) BLACK_score-=3;
+    	    				else WHITE_score-=3;
+						}
+					}
+					else if(i==6)
+					{
+						if(j==0 || j==1 || j==6 ||j==7)
+						{
+							if(board[i][j]==BLACK) BLACK_score-=3;
+    	    				else WHITE_score-=3;
+						}
+					}
+					else if(i==7)
+					{
+						if(j==1 || j==6)
+						{
+							if(board[i][j]==BLACK) BLACK_score-=3;
+    	    				else WHITE_score-=3;
+						}
+					}
+				}
+			}
+		}
+		
+    	// subtract white's total from black, let black be the maximizer
+    	return (BLACK_score-WHITE_score);
+	}
+	
 };
 struct Node
 {
