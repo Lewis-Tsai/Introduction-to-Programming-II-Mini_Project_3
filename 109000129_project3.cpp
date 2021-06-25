@@ -1,8 +1,7 @@
 #include <iostream>
 #include <bits/stdc++.h>
-#define max(a, b) (a>b? a:b)
-#define min(a, b) (a<b? a:b)
 #define <Point> P
+const int SIZE = 8;
 using namespace std;
 enum spot_status
 {
@@ -23,46 +22,101 @@ struct Point
 	}
 };
 
-int player;
-const int SIZE = 8;
-std::array<std::array<int, SIZE>, SIZE> board;
-std::vector<Point> next_valid_spots;
-
 struct Othello_board
 {
 	int now_player;
 	bool done;
 	int winner;
-	int disc_sum[2];
+	int disc_sum[3];
+	bool player_pass[3];
+	std::array<std::array<int, SIZE>, SIZE> board;
+	std::vector<Point> next_valid_spots;
 	array <Point> direction
 	{
 		P(-1, 0), P(1, 0), P(0, -1), P(0, 1);
 		P(-1, -1), P(1, 1), P(-1, -1), P(1, 1);
 	}
+	
+	Othello_board()
+	{
+    	initialize();
+	}
+	
+	void initialize()
+	{
+		disc_sum[BLACK]=0, disc_sum[WHITE]=0;
+		//initialize empty board
+    	for(int i = 0; i < SIZE; i++){
+    	    for(int j = 0; j < SIZE; j++)
+			{
+    	        if((i==3 && j==4) || (i==4 && j==3))
+    	        {
+   		         	board[i][j]=BLACK;
+    	        	disc_sum[BLACK]++;
+				}
+				else if((i==3 && j==3) || (i==4 && j==4))
+				{
+					board[i][j]=WHITE;
+            		disc_sum[WHITE]++;
+				}
+				else
+					board[i][j] = EMPTY;
+        	}
+    	}
+
+		player_pass[BLACK]=false, player_pass[WHITE]=false;
+    	now_Player = BLACK;
+    	done = false;
+    	winner=EMPTY;
+	}
+	
+	//  copy constructor, NEED MODIFY 
+	Othello_board(Othello_board bd)
+	{
+    	for(int i = 0; i < SIZE; i++)
+    	{
+    		for(int j = 0; j < SIZE; j++)
+    	        this->board[i][j] = bd.board[i][j];
+		}
+    	for(int i = 1; i < 3; i++)
+        {
+        	this->disc_sum[i] = bd.disc_sum[i];
+        	this->player_pass[i] = bd.player_pass[i];
+		}
+    	this->now_Player = bd.now_Player;
+    	this->done=bd.done;
+    	this->winner=bd.winner;
+
+	}
+
+	
 	bool check_valid_spot(Point start_pt)
 	{
 		int enemy_player = now_player=BLACK? WHITE : BLACK;
-		if(board[start_pt.x][start_pt.y]!=EMPTY)
-			return false;
-		for(auto it : direction)
+		if(board[start_pt.x][start_pt.y]==EMPTY)
 		{
-			Point tmp;
-			tmp = start_pt + *it;
-			if(board[x][y]==enemy_player)
+			for(auto it : direction)
 			{
-				tmp+=*it;
-				while(is_inside_board(tmp))
+				Point tmp;
+				tmp = start_pt + *it;
+				if(board[tmp.x][tmp.y]==enemy_player)
 				{
-					if(board[tmp.x][tmp.y]==cur_player)
+					tmp+=*it;
+					while(is_inside_board(tmp))
 					{
-						//next_valid_spots.push_back(tmp);
-						return true;
+						if(board[tmp.x][tmp.y]==now_player)
+						{
+							//next_valid_spots.push_back(tmp);
+							return true;
+						}
+						tmp+=*it;
 					}
 				}
 			}
 		}
 		return false;
 	}
+	
 	bool is_inside_board(Point point)
 	{
 		if(point.x>=0 && point.x <8)
@@ -72,7 +126,7 @@ struct Othello_board
 		}
 		return false;
 	}
-	void flip_disc(Point start_pt)
+	void flip_disc(Point start_pt)  //NEED MODIFY
 	{
 		int enemy_player = now_player=BLACK? WHITE : BLACK;
 		if(board[start_pt.x][start_pt.y]==now_player)
@@ -205,6 +259,13 @@ struct Othello_board
 		
     	// subtract white's total from black, let black be the maximizer
     	return (BLACK_score-WHITE_score);
+	}
+	
+	bool is_finish()
+	{
+		if((player_pass[BLACK]==true && player_pass[WHITE]==true) || disc_sum[BLACK]+disc_sum[WHITE]==64)
+			return true;
+		return false;
 	}
 	
 };
