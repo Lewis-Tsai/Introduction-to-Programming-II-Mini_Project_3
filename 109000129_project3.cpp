@@ -1,304 +1,307 @@
 #include <iostream>
-#include <bits/stdc++.h>
-#define <Point> P
-const int SIZE = 8;
-using namespace std;
-enum spot_status
-{
-	EMPTY:0;
-	BLACK=1;
-	WHITE=2;
-}
-struct Point
-{
-	int x, y;
+#include <fstream>
+#include <string>
+#include <sstream>
+#include <array>
+#include <vector>
+#include <cassert>
+#include <climits> 
+struct Point {
+    int x, y;
+    int value;
 	Point() : Point(0, 0) {}
-	Point(int x, int y) : x(x), y(y) {}
-	Point operator+(const Point& point) const {
-		return Point(this.x + point.x, this.y + point.y);
+	Point(int x, int y) : x(x), y(y), value(0) {}
+	Point(int x, int y, int value) : x(x), y(y), value(value) {}
+	bool operator==(const Point& rhs) const {
+		return x == rhs.x && y == rhs.y;
 	}
-	Point operator-(const Point& point) const {
-		return Point(this.x - point.x, this.y - point.y);
+	bool operator!=(const Point& rhs) const {
+		return !operator==(rhs);
+	}
+	Point operator+(const Point& rhs) const {
+		return Point(x + rhs.x, y + rhs.y);
+	}
+	Point operator-(const Point& rhs) const {
+		return Point(x - rhs.x, y - rhs.y);
 	}
 };
 
-struct Othello_board
+int player;
+const int SIZE = 8;
+std::array<std::array<int, SIZE>, SIZE> board;
+std::vector<Point> next_valid_spots;
+
+int map[8][8];
+void ini_map()
 {
-	int now_player;
-	bool done;
-	int winner;
-	int disc_sum[3];
-	bool player_pass[3];
-	std::array<std::array<int, SIZE>, SIZE> board;
-	std::vector<Point> next_valid_spots;
-	array <Point> direction
+	for(int i=0;i<8;i++)
 	{
-		P(-1, 0), P(1, 0), P(0, -1), P(0, 1);
-		P(-1, -1), P(1, 1), P(-1, -1), P(1, 1);
-	}
-	
-	Othello_board()
-	{
-    	initialize();
-	}
-	
-	void initialize()
-	{
-		disc_sum[BLACK]=0, disc_sum[WHITE]=0;
-		//initialize empty board
-    	for(int i = 0; i < SIZE; i++){
-    	    for(int j = 0; j < SIZE; j++)
+		for(int j=0;j<8;j++)
+		{
+			if(i==0 || i==7)
 			{
-    	        if((i==3 && j==4) || (i==4 && j==3))
-    	        {
-   		         	board[i][j]=BLACK;
-    	        	disc_sum[BLACK]++;
-				}
-				else if((i==3 && j==3) || (i==4 && j==4))
+				if(j==0 || j==7) map[i][j]=30;
+				if(j==1 || j==6) map[i][j]=1;
+				if(j==2 || j==5) map[i][j]=10;
+				else map[i][j]=5;
+			}
+			if(i==1 || i==6)
+			{
+				if(j==0 || j==7) map[i][j]=1;
+				if(j==1 || j==6) map[i][j]=-5;
+				if(j==2 || j==5) map[i][j]=1;
+				else map[i][j]=1;
+			}
+			if(i==2 || i==5)
+			{
+				if(j==0 || j==7) map[i][j]=10;
+				if(j==1 || j==6) map[i][j]=1;
+				if(j==2 || j==5) map[i][j]=3;
+				else map[i][j]=2;
+			}
+			if(i==3 || i==4)
+			{
+				if(j==0 || j==7) map[i][j]=5;
+				if(j==1 || j==6) map[i][j]=1;
+				if(j==2 || j==5) map[i][j]=2;
+				else map[i][j]=1;
+			}
+		}
+	}
+}
+
+class OthelloBoard {
+public:
+    enum SPOT_STATE {
+        EMPTY = 0,
+        BLACK = 1,
+        WHITE = 2
+    };
+    static const int SIZE = 8;
+    const std::array<Point, 8> directions{{
+        Point(-1, -1), Point(-1, 0), Point(-1, 1),
+        Point(0, -1), /*{0, 0}, */Point(0, 1),
+        Point(1, -1), Point(1, 0), Point(1, 1)
+    }};
+    std::array<std::array<int, SIZE>, SIZE> board;
+    std::vector<Point> next_valid_spots;
+    std::array<int, 3> disc_count;
+    int cur_player;
+    bool done;
+    int winner;
+private:
+    int get_next_player(int player) const {
+        return 3 - player;
+    }
+    bool is_spot_on_board(Point p) const {
+        return 0 <= p.x && p.x < SIZE && 0 <= p.y && p.y < SIZE;
+    }
+    int get_disc(Point p) const {
+        return board[p.x][p.y];
+    }
+    void set_disc(Point p, int disc) {
+        board[p.x][p.y] = disc;
+    }
+    bool is_disc_at(Point p, int disc) const {
+        if (!is_spot_on_board(p))
+            return false;
+        if (get_disc(p) != disc)
+            return false;
+        return true;
+    }
+    bool is_spot_valid(Point center) const {
+        if (get_disc(center) != EMPTY)
+            return false;
+        for (Point dir: directions) {
+            // Move along the direction while testing.
+            Point p = center + dir;
+            if (!is_disc_at(p, get_next_player(cur_player)))
+                continue;
+            p = p + dir;
+            while (is_spot_on_board(p) && get_disc(p) != EMPTY) {
+                if (is_disc_at(p, cur_player))
+                    return true;
+                p = p + dir;
+            }
+        }
+        return false;
+    }
+    void flip_discs(Point center) {
+        for (Point dir: directions) {
+            // Move along the direction while testing.
+            Point p = center + dir;
+            if (!is_disc_at(p, get_next_player(cur_player)))
+                continue;
+            std::vector<Point> discs({p});
+            p = p + dir;
+            while (is_spot_on_board(p) && get_disc(p) != EMPTY) {
+                if (is_disc_at(p, cur_player)) {
+                    for (Point s: discs) {
+                        set_disc(s, cur_player);
+                    }
+                    disc_count[cur_player] += discs.size();
+                    disc_count[get_next_player(cur_player)] -= discs.size();
+                    break;
+                }
+                discs.push_back(p);
+                p = p + dir;
+            }
+        }
+    }
+public:
+    OthelloBoard() {
+        reset();
+    }
+    void reset() {
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                board[i][j] = EMPTY;
+            }
+        }
+        board[3][4] = board[4][3] = BLACK;
+        board[3][3] = board[4][4] = WHITE;
+        cur_player = BLACK;
+        disc_count[EMPTY] = 8*8-4;
+        disc_count[BLACK] = 2;
+        disc_count[WHITE] = 2;
+        next_valid_spots = get_valid_spots();
+        done = false;
+        winner = -1;
+    }
+    std::vector<Point> get_valid_spots() const {
+        std::vector<Point> valid_spots;
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                Point p = Point(i, j);
+                if (board[i][j] != EMPTY)
+                    continue;
+                if (is_spot_valid(p))
+                    valid_spots.push_back(p);
+            }
+        }
+        return valid_spots;
+    }
+    bool put_disc(Point p) {
+        if(!is_spot_valid(p)) {
+            winner = get_next_player(cur_player);
+            done = true;
+            return false;
+        }
+        set_disc(p, cur_player);
+        disc_count[cur_player]++;
+        disc_count[EMPTY]--;
+        flip_discs(p);
+        // Give control to the other player.
+        cur_player = get_next_player(cur_player);
+        next_valid_spots = get_valid_spots();
+        // Check Win
+        if (next_valid_spots.size() == 0) {
+            cur_player = get_next_player(cur_player);
+            next_valid_spots = get_valid_spots();
+            if (next_valid_spots.size() == 0) {
+                // Game ends
+                done = true;
+                int white_discs = disc_count[WHITE];
+                int black_discs = disc_count[BLACK];
+                if (white_discs == black_discs) winner = EMPTY;
+                else if (black_discs > white_discs) winner = BLACK;
+                else winner = WHITE;
+            }
+        }
+        return true;
+    }
+    
+    int state_value()
+	{
+		int goal=player;
+		int enemy=(goal==BLACK? WHITE : BLACK);
+		int goal_score=0, enemy_score=0;
+		int bonus=0;
+		for(int i=0;i<8;i++)
+		{
+			for(int j=0;j<8;j++)
+			{
+				if(board[i][j]!=EMPTY)
 				{
-					board[i][j]=WHITE;
-            		disc_sum[WHITE]++;
+					if(board[i][j]==goal)
+						goal_score+=map[i][j];
+					else
+						enemy_score+=map[i][j];
 				}
+			}
+		}
+		if(winner==goal)
+			goal_score+=500;
+		else if(winner==enemy)
+			enemy_score+=700;
+		if(this->cur_player==player)
+		{
+			goal_score+=(this->next_valid_spots.size());
+			enemy_score+=disc_count[EMPTY]-(this->next_valid_spots.size())*0.7;
+			if((this->next_valid_spots.size())==0)
+				goal_score-=100;
+		}
+		goal_score+=disc_count[goal];
+		enemy_score+=disc_count[enemy];
+		return goal_score-enemy_score;
+	}
+	
+	void sum_recount()
+	{
+		disc_count[BLACK]=disc_count[WHITE]=disc_count[EMPTY]=0;
+		for(int i=0;i<8;i++)
+		{
+			for(int j=0;j<8;j++)
+			{
+				if(board[i][j]==BLACK)
+					disc_count[BLACK]++;
+				else if(board[i][j]==WHITE)
+					disc_count[WHITE]++;
 				else
-					board[i][j] = EMPTY;
+					disc_count[EMPTY]++;
+			}
+		}
+	}
+};
+
+int minimax(OthelloBoard bd, int depth, int alpha, int beta, bool maximizingPlayer) {
+    int cur;
+	if (depth == 0 || bd.done) {
+        return bd.state_value();
+    }
+	if (maximizingPlayer) {
+        int max=INT_MIN;
+        for (auto it : bd.next_valid_spots) {
+        	OthelloBoard next_bd=bd;
+        	if(next_bd.put_disc(it)) {
+            	cur = minimax(next_bd, depth - 1, alpha, beta, !maximizingPlayer);
+           	 	if (cur > max)
+            		max=cur;
+            	if(cur>alpha)
+            		alpha=cur;
+            	if(alpha>=beta)
+            		break;
         	}
     	}
-
-		player_pass[BLACK]=false, player_pass[WHITE]=false;
-    	now_Player = BLACK;
-    	done = false;
-    	winner=EMPTY;
+    	return max;
 	}
-	
-	//  copy constructor, NEED MODIFY 
-	Othello_board(Othello_board bd)
-	{
-    	for(int i = 0; i < SIZE; i++)
-    	{
-    		for(int j = 0; j < SIZE; j++)
-    	        this->board[i][j] = bd.board[i][j];
-		}
-    	for(int i = 1; i < 3; i++)
-        {
-        	this->disc_sum[i] = bd.disc_sum[i];
-        	this->player_pass[i] = bd.player_pass[i];
-		}
-    	this->now_Player = bd.now_Player;
-    	this->done=bd.done;
-    	this->winner=bd.winner;
-
-	}
-
-	
-	bool check_valid_spot(Point start_pt)
-	{
-		int enemy_player = now_player=BLACK? WHITE : BLACK;
-		if(board[start_pt.x][start_pt.y]==EMPTY)
-		{
-			for(auto it : direction)
-			{
-				Point tmp;
-				tmp = start_pt + *it;
-				if(board[tmp.x][tmp.y]==enemy_player)
-				{
-					tmp+=*it;
-					while(is_inside_board(tmp))
-					{
-						if(board[tmp.x][tmp.y]==now_player)
-						{
-							//next_valid_spots.push_back(tmp);
-							return true;
-						}
-						tmp+=*it;
-					}
-				}
-			}
-		}
-		return false;
-	}
-	
-	bool is_inside_board(Point point)
-	{
-		if(point.x>=0 && point.x <8)
-		{
-			if(point.y>=0 && point.y <8)
-				return true;
-		}
-		return false;
-	}
-	void flip_disc(Point start_pt)  //NEED MODIFY
-	{
-		int enemy_player = now_player=BLACK? WHITE : BLACK;
-		if(board[start_pt.x][start_pt.y]==now_player)
-		{
-			for(auto it : direction)
-			{
-				Point tmp;
-				tmp = start_pt + *it;
-				while(board[tmp.x][tmp.y]==enemy_player)
-				{
-					board[tmp.x][tmp.y]==cur_player;
-					disc_sum[cur_player]++;
-					disc_sum[enemy_player]--;
-					tmp+=*it;
-				}
-				return;
-			}
-		}
-		return;
-	}
-	
-	int get_node_value()
-	{
-		// intialize black and white total
-    	int BLACK_score = 0;
-    	int WHITE_score = 0;
-
-    	// factor in the amount of moves each player has
-    	b_total += getBlackLegalMoves(board).size();
-    	w_total += getWhiteLegalMoves(board).size();
-
-    	// factor in the amount of pieces each player has on the board
-    	b_total += getScore(board, 'b');
-    	w_total += getScore(board, 'w');
-
-    	for(int i=0;i<8;i++)
-    	{
-    		for(int j=0;j<8;j++)
-    		{
-    			if(board[i][j]!=EMPTY)
-    			{
-    				//check four corners
-    				if(i==0)
-    				{
-    					if(j==0 || j==7)
-    					{
-    						if(board[i][j]==BLACK) BLACK_score+=15;
-    	    				else WHITE_score+=15;
-    	    				continue;
-						}
-					}
-					if(i==7)
-					{
-						if(j==0 || j==7)
-    					{
-    						if(board[i][j]==BLACK) BLACK_score+=15;
-    	    				else WHITE_score+=15;
-    	    				continue;
-						}
-					}
-					
-					//check central area
-					if(i==2 || i==3 || i=4 || i=5)
-					{
-						if(j==2 || j==3 || j==4 || j==5)
-						{
-							if(board[i][j]==BLACK) BLACK_score-=2;
-    	    				else WHITE_score-=2;
-						}
-					}
-					
-					//check the boundaries rolls and collums as well as special bonus points
-					if(i==0 || i==7)
-					{
-						if(board[i][j]==BLACK) BLACK_score+=5;
-    	    			else WHITE_score+=5;
-    	    			if(j==2 || j==5)
-    	    			{
-    	    				if(board[i][j]==BLACK) BLACK_score+=2;
-    	    				else WHITE_score+=2;
-						}
-					}
-					if(j==0 || j==7)
-					{
-						if(board[i][j]==BLACK) BLACK_score+=5;
-    	    			else WHITE_score+=5;
-    	    			if(i==2 || i==5)
-    	    			{
-    	    				if(board[i][j]==BLACK) BLACK_score+=2;
-    	    				else WHITE_score+=2;
-						}
-					}
-					
-					//check if next to the corners
-					if(i==0)
-					{
-						if(j==1 || j==6)
-						{
-							if(board[i][j]==BLACK) BLACK_score-=3;
-    	    				else WHITE_score-=3;
-						}
-					}
-					else if(i==1)
-					{
-						if(j==0 || j==1 || j==6 ||j==7)
-						{
-							if(board[i][j]==BLACK) BLACK_score-=3;
-    	    				else WHITE_score-=3;
-						}
-					}
-					else if(i==6)
-					{
-						if(j==0 || j==1 || j==6 ||j==7)
-						{
-							if(board[i][j]==BLACK) BLACK_score-=3;
-    	    				else WHITE_score-=3;
-						}
-					}
-					else if(i==7)
-					{
-						if(j==1 || j==6)
-						{
-							if(board[i][j]==BLACK) BLACK_score-=3;
-    	    				else WHITE_score-=3;
-						}
-					}
-				}
-			}
-		}
-		
-    	// subtract white's total from black, let black be the maximizer
-    	return (BLACK_score-WHITE_score);
-	}
-	
-	bool is_finish()
-	{
-		if((player_pass[BLACK]==true && player_pass[WHITE]==true) || disc_sum[BLACK]+disc_sum[WHITE]==64)
-			return true;
-		return false;
-	}
-	
-};
-struct Node
-{
-	int x, y;
-	Node alphabeta_pruning(Node node, int depth, int alpha, int beta, bool biggest)
-	{
-		int value;
-		if depth = 0 or node是?端節點
-    	     return 節點的啟發值
-    	if (biggest)
-		{
-			value = INT_MIN
-    	    for ()
-    	          v := max(v, alphabeta(child, depth - 1, α, β, FALSE)) // child = 子節點
-    	         α := max(α, v)
-    	         if β ? α
-    	             break // β裁剪
-    	     return v
-		}  
-		else
-    	{
-    		v := INT_MAX
-    	      for 每?子節點
-     	        v := min(v, alphabeta(child, depth - 1, α, β, TRUE))
-     	        β := min(β, v)
-     	        if β ? α                  break // α裁剪
-      	    return v
-		}
-	}	
-    
-};
+    else {
+        int min=INT_MAX;
+        for (auto it : bd.next_valid_spots) {
+        	OthelloBoard next_bd=bd;
+        	if(next_bd.put_disc(it)) {
+            	cur = minimax(next_bd, depth - 1, alpha, beta, !maximizingPlayer);
+            	if (cur < min)
+            		min=cur;
+            	if(cur<beta)
+            		beta=cur;
+            	if(alpha>=beta)
+            		break;
+        	}	
+    	}
+    	return min;
+    }
+}
 
 void read_board(std::ifstream& fin) {
     fin >> player;
@@ -321,12 +324,34 @@ void read_valid_spots(std::ifstream& fin) {
 
 void write_valid_spot(std::ofstream& fout) {
     int n_valid_spots = next_valid_spots.size();
-    srand(time(NULL));
+    //srand(time(NULL));
     // Choose random spot. (Not random uniform here)
     int index = (rand() % n_valid_spots);
     Point p = next_valid_spots[index];
-    // Remember to flush the output to ensure the last action is written to file.
     fout << p.x << " " << p.y << std::endl;
+    // Remember to flush the output to ensure the last action is written to file.
+    ini_map();
+    OthelloBoard bd;
+    bd.board=board;
+    bd.next_valid_spots=next_valid_spots;
+    bd.cur_player=player;
+    bd.sum_recount();
+    int max=INT_MIN, trav;
+    for(auto it : bd.next_valid_spots)
+    {
+    	OthelloBoard next_bd=bd;
+    	if(next_bd.put_disc(it))
+    	{
+    		trav=minimax(next_bd, 6, INT_MIN, INT_MAX, false);
+    		if(trav>max)
+    		{
+    			max=trav;
+    			p=it;
+    			//std::cout<< "best.x:" << best.x << " best.y:" << best.y << std::endl;
+    			fout << p.x << " " << p.y << std::endl;
+			}
+		}
+	}
     fout.flush();
 }
 
