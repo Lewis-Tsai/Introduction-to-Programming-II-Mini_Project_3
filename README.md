@@ -44,9 +44,6 @@ This is an Othello AI. This program will play against these baselines and try to
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
-
 ### Othello Rules
 
 * Use black and white discs and an 8 x 8 board, black plays first
